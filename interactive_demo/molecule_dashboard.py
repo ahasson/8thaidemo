@@ -7,52 +7,20 @@ from rdkit.Chem import Draw
 import base64
 import io
 
-feature_to_mols: dict[int, list[str]] = {
-    0: [
-        "CC(=O)OC1=CC=CC=C1C(=O)O",
-        "CC(=O)OC1=CC=C(C=C1)C",
-        "CC(=O)OC1=CC=CC=C1",
-    ],
-    1: [
-        "CN1C=NC2=C1C(=O)N(C(=O)N2C)C",
-        "CN1C=NC2=C1C(=O)N(C(=O)N2C)CC",
-        "CN1C=NC2=C1C(=O)NC(=O)N2C",
-    ],
-    2: [
-        "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O",
-        "CC(C)C1=CC=C(C=C1)C(C)C(=O)O",
-        "CCC(C)C1=CC=C(C=C1)C(C)C(=O)O",
-    ],
-    3: [
-        "CC(=O)NC1=CC=C(C=C1)O",
-        "CC(=O)NC1=CC=CC=C1",
-        "CC(=O)NC1=CC=C(C=C1)OC",
-    ],
-    4: [
-        "CN1CC[C@]23C4=C5C=CC(O)=C4O[C@H]2[C@@H](O)C=C[C@H]3[C@H]1C5",
-        "COC1=CC2=C(C=C1)[C@]34CCN([C@H]([C@@H]34)CC2)C",
-        "C1CC2=C(C=CC(=C2)O)C3=C1C=CC(=C3)O",
-    ],
-}
 
-# Define 5 features with their properties
-feature_data = {
-    "feature": [0, 1, 2, 3, 4],
-    "feature_name": [
-        "Acetyl Esters",
-        "Xanthines",
-        "Propionic Acids",
-        "Acetamides",
-        "Phenanthrenes",
-    ],
-    "num_molecules": [len(feature_to_mols[i]) for i in range(5)],
-    "cov": [0.1, 0.3, 0.2, 0.4, 0.5],  # Coefficient of Variation
-    "x_coord": [2.5, 1.2, 4.8, 1.8, 3.2],  # Feature coordinates for scatter plot
-    "y_coord": [3.1, 4.5, 2.3, 3.8, 1.9],  # Feature coordinates for scatter plot
-}
+feature_data = pd.read_csv("figure_2_demo_data.csv")
+feature_data.columns = ["feature", "x_coord", "y_coord", "cov", "top_smiles"]
+# Convert str list to list
+feature_to_smiles = feature_data["top_smiles"].apply(lambda x: eval(x))
+feature_data["feature_name"] = feature_data["feature"].values.astype(str)
+# Convert list to dict
+feature_to_mols = dict(zip(feature_data["feature"], feature_to_smiles))
+
+feature_data["num_molecules"] = feature_data.apply(
+    lambda x: len(feature_to_smiles[x["feature"]]), axis=1
+)
 
 df = pd.DataFrame(feature_data)
-
 
 # Function to generate molecule image as base64 string
 def mol_to_img_base64(smiles, img_size=(200, 200)):
@@ -248,7 +216,7 @@ def update_scatter(graph_id):
             y=df["y_coord"],
             mode="markers",
             marker=dict(
-                size=20,
+                size=10,
                 color=df["cov"],
                 colorscale="Viridis",
                 showscale=True,
@@ -264,11 +232,12 @@ def update_scatter(graph_id):
             customdata=df.index,
         )
     )
+    fig.update_xaxes(type="log")
 
     fig.update_layout(
         title="Feature Space Visualization",
-        xaxis_title="Feature Dimension X",
-        yaxis_title="Feature Dimension Y",
+        xaxis_title="Activation frequency [log scale]",
+        yaxis_title="Mean normalised activation",
         hovermode="closest",
         plot_bgcolor="rgba(240,240,240,0.8)",
         paper_bgcolor="white",
